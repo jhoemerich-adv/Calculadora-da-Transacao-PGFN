@@ -82,6 +82,9 @@ const REGRAS = {
 
 const LIMITE_VALOR = 45000000; // Art. 2º
 
+// TROQUE pelo número de WhatsApp do escritório (DDI 55 + DDD + número, só dígitos)
+const WHATSAPP_NUMERO = "5544988553443";
+
 function detectarPerfil(doc) {
   const digits = doc.replace(/\D/g, "");
   if (digits.length === 11) return "PF";
@@ -108,9 +111,24 @@ function formatarMoeda(v) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+// Máscara monetária: trata a digitação como centavos, formatando em tempo
+// real como "R$ 10.000.000,00" (padrão de apps bancários).
+function aplicarMascaraMoeda(str) {
+  const digits = str.replace(/\D/g, "");
+  if (!digits) return "";
+  const numero = parseInt(digits, 10) / 100;
+  return numero.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
 function parseValor(str) {
-  const n = str.replace(/[^\d,]/g, "").replace(",", ".");
-  return parseFloat(n) || 0;
+  // O campo sempre chega já mascarado (ex: "R$ 10.000.000,00"), então
+  // extraímos os dígitos brutos e dividimos por 100 (mesma lógica da máscara).
+  const digits = str.replace(/\D/g, "");
+  if (!digits) return 0;
+  return parseInt(digits, 10) / 100;
 }
 
 function calcularCenarios(valor, regra) {
@@ -313,7 +331,15 @@ function App() {
           />
         )}
 
-        {etapa === "concluido" && <ConcluidoEtapa nome={nome} />}
+        {etapa === "concluido" && (
+          <ConcluidoEtapa
+            nome={nome}
+            telefone={telefone}
+            valor={valor}
+            cenarios={cenarios}
+            regraUsada={regraUsada}
+          />
+        )}
 
         <Footer />
       </div>
@@ -353,10 +379,10 @@ function FormEtapa({
       <label style={styles.label}>Valor total do débito</label>
       <input
         style={styles.input}
-        inputMode="decimal"
+        inputMode="numeric"
         placeholder="R$ 0,00"
         value={valor}
-        onChange={(e) => setValor(e.target.value)}
+        onChange={(e) => setValor(aplicarMascaraMoeda(e.target.value))}
       />
 
       <label style={styles.label}>CPF ou CNPJ</label>
@@ -595,17 +621,41 @@ function CapturaEtapa({
   );
 }
 
-function ConcluidoEtapa({ nome }) {
+function ConcluidoEtapa({ nome, telefone, valor, cenarios, regraUsada }) {
+  const primeiroNome = nome.split(" ")[0];
+  const descontoMax = cenarios[0] ? cenarios[0].pct : null;
+  const modalidadeLabel =
+    regraUsada && regraUsada.grupo === "capag"
+      ? "Capacidade de Pagamento"
+      : "Débitos Irrecuperáveis";
+
+  const mensagem =
+    "Olá! Sou " + nome + " e acabei de simular minha transação tributária no site. " +
+    "Débito informado: " + formatarMoeda(parseValor(valor)) + ", modalidade " + modalidadeLabel +
+    (descontoMax != null ? ", desconto máximo estimado de " + descontoMax + "%" : "") +
+    ". Gostaria de conversar com um consultor.";
+
+  const linkWhatsApp =
+    "https://wa.me/" + WHATSAPP_NUMERO + "?text=" + encodeURIComponent(mensagem);
+
   return (
     <div style={styles.card}>
       <div style={styles.checkCircle}>✓</div>
       <h2 style={{ ...styles.h2, textAlign: "center" }}>
-        Recebemos seus dados, {nome.split(" ")[0]}!
+        Recebemos seus dados, {primeiroNome}!
       </h2>
       <p style={{ ...styles.leadSmall, textAlign: "center" }}>
         Um consultor tributário do escritório entrará em contato em breve para confirmar
         as condições reais da sua transação com a PGFN.
       </p>
+      <a
+        href={linkWhatsApp}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={styles.botaoWhatsApp}
+      >
+        Falar agora pelo WhatsApp
+      </a>
     </div>
   );
 }
@@ -797,6 +847,23 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     margin: "0 auto 16px",
+  },
+  botaoWhatsApp: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    boxSizing: "border-box",
+    background: "#25D366",
+    color: "#fff",
+    border: "none",
+    borderRadius: 8,
+    padding: "15px 18px",
+    fontSize: 15.5,
+    fontWeight: 700,
+    marginTop: 20,
+    textDecoration: "none",
+    cursor: "pointer",
   },
   footer: {
     textAlign: "center",
