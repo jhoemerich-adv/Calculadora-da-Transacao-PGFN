@@ -190,6 +190,7 @@ function App() {
   const [erro, setErro] = useState("");
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [consentimento, setConsentimento] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [cenarios, setCenarios] = useState([]);
   const [regraUsada, setRegraUsada] = useState(null);
@@ -246,6 +247,10 @@ function App() {
   async function salvarLead() {
     if (!nome.trim() || telefone.replace(/\D/g, "").length < 10) {
       setErro("Informe nome e um telefone válido com DDD.");
+      return;
+    }
+    if (!consentimento) {
+      setErro("É necessário autorizar o uso dos dados para enviar o formulário.");
       return;
     }
     setErro("");
@@ -324,6 +329,8 @@ function App() {
             setNome={setNome}
             telefone={telefone}
             setTelefone={setTelefone}
+            consentimento={consentimento}
+            setConsentimento={setConsentimento}
             erro={erro}
             salvando={salvando}
             onSalvar={salvarLead}
@@ -567,6 +574,8 @@ function CapturaEtapa({
   setNome,
   telefone,
   setTelefone,
+  consentimento,
+  setConsentimento,
   erro,
   salvando,
   onSalvar,
@@ -608,14 +617,45 @@ function CapturaEtapa({
         onChange={(e) => handleTelefone(e.target.value)}
       />
 
+      <label style={styles.consentimentoLabel}>
+        <input
+          type="checkbox"
+          checked={consentimento}
+          onChange={(e) => setConsentimento(e.target.checked)}
+          style={styles.consentimentoCheckbox}
+        />
+        <span>
+          Autorizo o escritório Patussi Emerich Advocacia a utilizar os dados informados
+          (nome, telefone e os dados da simulação) exclusivamente para entrar em contato
+          comigo sobre esta consulta, conforme a Lei Geral de Proteção de Dados (Lei nº
+          13.709/2018).{" "}
+          <a
+            href="politica-privacidade.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "#002554", fontWeight: 700 }}
+          >
+            Saiba mais
+          </a>
+        </span>
+      </label>
+
       {erro && <div style={styles.erro}>{erro}</div>}
 
-      <button style={styles.botaoPrimario} onClick={onSalvar} disabled={salvando}>
+      <button
+        style={{
+          ...styles.botaoPrimario,
+          opacity: consentimento ? 1 : 0.5,
+        }}
+        onClick={onSalvar}
+        disabled={salvando || !consentimento}
+      >
         {salvando ? "Enviando..." : "Quero tirar dúvidas com um consultor"}
       </button>
 
       <div style={styles.disclaimerMini}>
-        Seus dados são usados apenas para retorno do escritório Patussi Emerich Advocacia.
+        Seus dados são usados apenas para retorno do escritório Patussi Emerich Advocacia
+        e não são compartilhados com terceiros.
       </div>
     </div>
   );
@@ -779,6 +819,26 @@ const styles = {
     textAlign: "center",
     marginTop: 14,
     lineHeight: 1.4,
+  },
+  consentimentoLabel: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 10,
+    marginTop: 18,
+    padding: "12px 14px",
+    background: "#F7F8FA",
+    border: "1px solid #E9E9EB",
+    borderRadius: 8,
+    fontSize: 12.5,
+    color: "#3A3A3C",
+    lineHeight: 1.5,
+    cursor: "pointer",
+  },
+  consentimentoCheckbox: {
+    marginTop: 2,
+    flexShrink: 0,
+    width: 16,
+    height: 16,
   },
   perfilTag: {
     display: "inline-block",
