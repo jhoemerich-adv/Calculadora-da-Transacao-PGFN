@@ -18,7 +18,28 @@
 </head>
 <body>
 
-<div id="root"></div>
+<div id="root">
+  <div style="max-width:560px;margin:60px auto;padding:24px;font-family:Arial,sans-serif;color:#63666A;text-align:center;">
+    Carregando simulador...
+  </div>
+</div>
+
+<div id="erro-visivel" style="display:none;max-width:560px;margin:24px auto;padding:20px;font-family:Arial,sans-serif;background:#FDEDED;color:#9A2A2A;border:1px solid #F3C6C6;border-radius:8px;"></div>
+
+<script>
+  // Captura qualquer erro de JS (incluindo falha de carregamento de script/CDN)
+  // e exibe direto na tela, já que no celular não há acesso fácil ao console.
+  window.onerror = function (mensagem, origem, linha, coluna, erro) {
+    var caixa = document.getElementById("erro-visivel");
+    if (caixa) {
+      caixa.style.display = "block";
+      caixa.innerHTML =
+        "<strong>Erro ao carregar o simulador:</strong><br>" +
+        mensagem +
+        "<br><small>Arquivo: " + origem + " (linha " + linha + ")</small>";
+    }
+  };
+</script>
 
 <!--
   ============================================================
@@ -785,8 +806,17 @@ const styles = {
   },
 };
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App />);
+try {
+  const root = ReactDOM.createRoot(document.getElementById("root"));
+  root.render(<App />);
+} catch (erroRender) {
+  const caixa = document.getElementById("erro-visivel");
+  if (caixa) {
+    caixa.style.display = "block";
+    caixa.innerHTML = "<strong>Erro ao iniciar o simulador:</strong><br>" + erroRender.message;
+  }
+  console.error(erroRender);
+}
 </script>
 </body>
 </html>
