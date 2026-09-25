@@ -180,6 +180,23 @@ async function salvarLeadRemoto(lead) {
   return true;
 }
 
+// Captura os parâmetros UTM da URL uma única vez, ao carregar a página.
+// Não é estado reativo porque a URL não muda durante a navegação dentro
+// do formulário (é uma página única, sem recarregar).
+function capturarUTMs() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      utmSource: params.get("utm_source") || "",
+      utmMedium: params.get("utm_medium") || "",
+      utmCampaign: params.get("utm_campaign") || "",
+    };
+  } catch (e) {
+    return { utmSource: "", utmMedium: "", utmCampaign: "" };
+  }
+}
+const UTMS_CAPTURADOS = capturarUTMs();
+
 function App() {
   const [etapa, setEtapa] = useState("form");
   const [valor, setValor] = useState("");
@@ -191,6 +208,9 @@ function App() {
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [consentimento, setConsentimento] = useState(false);
+  // Honeypot anti-bot: campo invisível para humanos. Bots que preenchem
+  // formulários automaticamente costumam preencher todo campo que encontram.
+  const [siteWeb, setSiteWeb] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [cenarios, setCenarios] = useState([]);
   const [regraUsada, setRegraUsada] = useState(null);
@@ -253,6 +273,12 @@ function App() {
       setErro("É necessário autorizar o uso dos dados para enviar o formulário.");
       return;
     }
+    // Honeypot: se o campo invisível veio preenchido, é bot. Finge sucesso
+    // (não alerta o bot) mas não envia nada de fato.
+    if (siteWeb.trim() !== "") {
+      setEtapa("concluido");
+      return;
+    }
     setErro("");
     setSalvando(true);
     const lead = {
@@ -264,6 +290,10 @@ function App() {
       tipoDebito,
       valorInformado: parseValor(valor),
       cenarioMaxPct: cenarios[0] ? cenarios[0].pct : null,
+      siteWeb: siteWeb,
+      utmSource: UTMS_CAPTURADOS.utmSource,
+      utmMedium: UTMS_CAPTURADOS.utmMedium,
+      utmCampaign: UTMS_CAPTURADOS.utmCampaign,
       data: new Date().toISOString(),
     };
 
@@ -331,6 +361,8 @@ function App() {
             setTelefone={setTelefone}
             consentimento={consentimento}
             setConsentimento={setConsentimento}
+            siteWeb={siteWeb}
+            setSiteWeb={setSiteWeb}
             erro={erro}
             salvando={salvando}
             onSalvar={salvarLead}
@@ -576,6 +608,8 @@ function CapturaEtapa({
   setTelefone,
   consentimento,
   setConsentimento,
+  siteWeb,
+  setSiteWeb,
   erro,
   salvando,
   onSalvar,
@@ -599,6 +633,20 @@ function CapturaEtapa({
         Um advogado do escritório confirma o desconto real do seu caso e te orienta sobre
         os próximos passos, sem compromisso.
       </p>
+
+      {/* Campo honeypot anti-bot: invisível para humanos, mas bots que
+          preenchem formulários automaticamente costumam preenchê-lo. */}
+      <div style={styles.honeypotWrapper} aria-hidden="true">
+        <label htmlFor="site-web-campo">Site</label>
+        <input
+          id="site-web-campo"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={siteWeb}
+          onChange={(e) => setSiteWeb(e.target.value)}
+        />
+      </div>
 
       <label style={styles.label}>Nome completo</label>
       <input
@@ -839,6 +887,14 @@ const styles = {
     flexShrink: 0,
     width: 16,
     height: 16,
+  },
+  honeypotWrapper: {
+    position: "absolute",
+    left: "-9999px",
+    top: "auto",
+    width: "1px",
+    height: "1px",
+    overflow: "hidden",
   },
   perfilTag: {
     display: "inline-block",
